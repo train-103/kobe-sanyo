@@ -48,6 +48,9 @@
 </div>
 
 <script>
+let lastTrains = [];
+let fetching = false;
+
 // ===============================
 // 駅データ
 // ===============================
@@ -161,8 +164,7 @@ scrollContainer.addEventListener("scroll", () => {
 // ===============================
 // データ取得
 // ===============================
-let lastTrains = [];
-let fetching = false;
+
 
 async function fetchTrainData() {
   if (fetching) return lastTrains;
@@ -382,3 +384,4 @@ setInterval(update, 60000);
 </script>
 </body>
 </html>
+

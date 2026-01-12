@@ -166,6 +166,16 @@ function getTrackKey(train) {
 }
 
 // ===============================
+// 両数 → 丸数字（①〜⑭）変換
+// ===============================
+function carsToCircle(num) {
+  const circles = [
+    "", "①","②","③","④","⑤","⑥","⑦",
+    "⑧","⑨","⑩","⑪","⑫","⑬","⑭"
+  ];
+  return circles[num] || "";
+}
+// ===============================
 // 列車描画
 // ===============================
 function drawTrains(trains) {
@@ -207,14 +217,58 @@ function drawTrains(trains) {
     else if (type.includes("快速")) bg = "#FFA500";
     else if (type.includes("普通")) bg = "#6EDC3A";
 
+    const noColor =
+      (type.includes("特急") || type.includes("新快速")) ? "white" : "black";
+
+    const delay = train.delayMinutes || 0;
+    const delayText = delay > 0 ? String(delay) : "";
+
     const noText = train.no;
-    const infoText = ` ${type} ${train.dest.text}`;
+
+// ★ 両数取得（numberOfCars）
+const cars = Number(train.numberOfCars) || 0;
+const carsText = carsToCircle(cars);
+
+// ★ 行き先＋両数（⑧など）を合成
+const infoText = ` ${type} ${train.dest.text}${carsText}`;
 
     const noW = ctx.measureText(noText).width + 10;
     const infoW = ctx.measureText(infoText).width + 10;
+    const delayW = delayText ? ctx.measureText(delayText).width + 8 : 0;
     const h = 22;
-    const totalW = noW + infoW;
+    const totalW = noW + infoW + delayW;
     const leftX = x - totalW / 2;
+
+    const trainKey = train.no + "_" + train.pos;
+const stayMs = updateStay(trainKey, x, from === to);
+
+
+    // 赤帯：1分以上駅直上
+    if (from === to && stayMs >= 60000) {
+      ctx.fillStyle = "red";
+      ctx.fillRect(leftX - 6, y - h/2, 6, h);
+      ctx.fillRect(leftX + totalW, y - h/2, 6, h);
+    }
+
+    // ×印：10分以上不動（赤丸＋黒枠＋白×）
+if (stayMs >= 600000) {
+  const r = 8; // 丸の半径
+  const cx = leftX - 20; // 列車枠から十分離す
+  const cy = y;
+
+  // 赤丸（塗り）
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fillStyle = "red";
+  ctx.fill();
+
+  // 白い×
+  ctx.fillStyle = "white";
+  ctx.font = "12px monospace";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("×", cx, cy);
+}
 
     ctx.fillStyle = "white";
     ctx.fillRect(leftX, y - h/2, totalW, h);
@@ -222,29 +276,42 @@ function drawTrains(trains) {
     ctx.fillStyle = bg;
     ctx.fillRect(leftX, y - h/2, noW, h);
 
-    ctx.fillStyle = "black";
+    ctx.fillStyle = noColor;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(noText, leftX + noW/2, y);
+
+    ctx.fillStyle = "black";
     ctx.fillText(infoText, leftX + noW + infoW/2, y);
+
+    if (delayText) {
+      ctx.fillStyle = "red";
+      ctx.fillText(delayText, leftX + noW + infoW + delayW/2, y);
+    }
   });
 }
 
 // ===============================
-async function fetchTrainData() {
-  const res = await fetch(
-    "https://jrwest-kobe.hayato-110802.workers.dev",
-    { cache: "no-store" }
-  );
-  const data = await res.json();
-  return data.trains || [];
-}
-
 async function update() {
+  // ★ 前景（列車）のみクリア
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // ★ 駅クリック領域だけは毎回再登録
   stationHitAreas.length = 0;
 
+  // ★ 背景は描かない（drawBackground() は呼ばない）
+
+  // ★ 前回データで即描画（チラつき防止）
+  // ★ 前回データがある場合のみ描画
+if (lastTrains.length > 0) {
+  drawTrains(lastTrains);
+}
+
+  // ★ 最新データ取得
   const trains = await fetchTrainData();
+
+  // ★ 上書き描画
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawTrains(trains);
 
   document.getElementById("time").textContent =
@@ -252,8 +319,14 @@ async function update() {
 }
 
 drawBackground();
+  // ★ 保存されているスクロール位置を復元
+const savedScroll = localStorage.getItem("scrollLeft");
+if (savedScroll !== null) {
+  document.getElementById("scroll-container").scrollLeft = Number(savedScroll);
+}
 update();
 setInterval(update, 60000);
 </script>
 </body>
 </html>
+

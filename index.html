@@ -150,6 +150,38 @@ function drawStationLabel(st, y, clickable, c) {
     stationHitAreas.push({ x, y: y - h / 2, w, h, cx: st.x });
   }
 }
+// ★ スクロール位置を保存（手動更新対策）
+const scrollContainer = document.getElementById("scroll-container");
+
+scrollContainer.addEventListener("scroll", () => {
+  localStorage.setItem("scrollLeft", scrollContainer.scrollLeft);
+});
+
+
+// ===============================
+// データ取得
+// ===============================
+let lastTrains = [];
+let fetching = false;
+
+async function fetchTrainData() {
+  if (fetching) return lastTrains;
+  fetching = true;
+
+  try {
+    const res = await fetch(
+      "https://jrwest-kobe.hayato-110802.workers.dev",
+      { cache: "no-store" }
+    );
+    const data = await res.json();
+    lastTrains = data.trains || lastTrains;
+  } catch {
+    console.warn("fetch失敗：前回データ使用");
+  } finally {
+    fetching = false;
+  }
+  return lastTrains;
+}
 
 // ===============================
 // 線路判定（複線・方向のみ）
@@ -163,6 +195,27 @@ function getTrackKey(train) {
   const last = getLastDigit(train);
   if (last === null) return "up";
   return (last % 2 === 1) ? "up" : "down";
+}
+// ===============================
+// 停滞管理（localStorage）
+// ===============================
+const stayMap = JSON.parse(localStorage.getItem("stayMap") || "{}");
+
+function updateStay(trainKey, x, isStation) {
+  const now = Date.now();
+  const s = stayMap[trainKey] || { x, t: now, station: isStation };
+
+  if (Math.abs(s.x - x) < 5 && s.station === isStation) {
+    // 継続
+  } else {
+    s.x = x;
+    s.t = now;
+    s.station = isStation;
+  }
+
+  stayMap[trainKey] = s;
+  localStorage.setItem("stayMap", JSON.stringify(stayMap));
+  return now - s.t;
 }
 
 // ===============================
@@ -329,4 +382,3 @@ setInterval(update, 60000);
 </script>
 </body>
 </html>
-

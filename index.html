@@ -299,7 +299,7 @@ const stayMs = updateStay(trainKey, x, from === to);
 
 
     // 赤帯：1分以上駅直上
-    if (from === to && stayMs >= 60000) {
+    if (from === to) {
       ctx.fillStyle = "red";
       ctx.fillRect(leftX - 6, y - h/2, 6, h);
       ctx.fillRect(leftX + totalW, y - h/2, 6, h);
@@ -384,4 +384,5 @@ setInterval(update, 60000);
 </script>
 </body>
 </html>
+
 

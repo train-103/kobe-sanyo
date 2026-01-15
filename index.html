@@ -192,7 +192,16 @@ function getLastDigit(train) {
   const m = String(train.no || "").match(/(\d)(?!.*\d)/);
   return m ? Number(m[1]) : null;
 }
+  
+// ===============================
+// 普通列車判定
+// ===============================
+function isLocalTrain(train) {
+  const type = train.displayType || "";
+  return type.includes("普通");
+}
 
+  
 function getTrackKey(train) {
   const last = getLastDigit(train);
   if (last === null) return "up";
@@ -202,7 +211,12 @@ function getTrackKey(train) {
 // 停滞管理（localStorage）
 // ===============================
 const stayMap = JSON.parse(localStorage.getItem("stayMap") || "{}");
+const crossMap = JSON.parse(localStorage.getItem("crossMap") || "{}");
 
+const redBandMap = JSON.parse(
+  localStorage.getItem("redBandMap") || "{}"
+);
+  
 function updateStay(trainKey, x, isStation) {
   const now = Date.now();
   const s = stayMap[trainKey] || { x, t: now, station: isStation };
@@ -239,8 +253,11 @@ function drawTrains(trains) {
 
   trains.forEach(train => {
     const [from, toRaw] = train.pos.split("_");
-    const to = (toRaw === "####") ? from : toRaw;
-
+  // ★ 停車中判定（今回の修正ポイント）
+const isStationary = (toRaw === "####");
+// ★ 描画用の to（駅間計算用）
+const to = isStationary ? from : toRaw;
+    
     const s1 = stations.find(s => s.code === from);
     const s2 = stations.find(s => s.code === to);
     if (!s1 || !s2) return;
@@ -352,7 +369,9 @@ if (showRedBand) {
 }
 
     // ×印：10分以上不動（赤丸＋黒枠＋白×）
-if (stayMs >= 600000) {
+if (crossMap[trainKey]) {
+  ctx.save();  // ← これが重要
+  
   const r = 8; // 丸の半径
   const cx = leftX - 20; // 列車枠から十分離す
   const cy = y;
@@ -427,10 +446,7 @@ if (savedScroll !== null) {
   document.getElementById("scroll-container").scrollLeft = Number(savedScroll);
 }
 update();
-setInterval(update, 60000);
+setInterval(update, 45000);
 </script>
 </body>
 </html>
-
-
-
